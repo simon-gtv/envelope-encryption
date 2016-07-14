@@ -1,9 +1,11 @@
 package com.gtv.security;
 
+import java.util.AbstractMap.SimpleEntry;
+
 public interface KeySource {
 
-   EncryptionEnvelopeResult<Void> createKey(String keyName);
+   SimpleEntry<String, String> createKey(String keyName);
 
-   EncryptionEnvelopeResult<String> decryptKey(String keyName);
+   String decryptKey(String keyId);
 
 }

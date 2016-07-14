@@ -9,17 +9,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 public class EncryptionEnvelope {
 
-   private static final String ENCRYPTED = "Encrypted";
-   private static final String DECRYPTED = "Decrypted";
-   private static final String AES       = "AES";
-   private static final String UTF8      = "UTF-8";
+   private static final String AES  = "AES";
+   private static final String UTF8 = "UTF-8";
 
    @Autowired
    private JpaDelegate saver;
    @Autowired
    private KeySource   keySource;
 
-   private EncryptionEnvelopeResult<String> encrypt(String plainKey, String id, String target) {
+   private String encrypt(String plainKey, String target) {
 
       try {
          byte[] key = plainKey.getBytes(UTF8);
@@ -28,14 +26,14 @@ public class EncryptionEnvelope {
          Cipher cipher = Cipher.getInstance(AES);
          cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec);
          byte[] encrypted = cipher.doFinal(value);
-         return new EncryptionEnvelopeResult<String>(true, id + " " + ENCRYPTED, new String(encrypted, UTF8));
+         return new String(encrypted, UTF8);
       } catch (Exception e) {
-         return new EncryptionEnvelopeResult<String>(false, e.getMessage(), null);
+         throw new EncryptionEnvelopeException(e);
       }
 
    }
 
-   private EncryptionEnvelopeResult<String> decrypt(String plainKey, String id, String target) {
+   private String decrypt(String plainKey, String target) {
 
       try {
          byte[] key = plainKey.getBytes(UTF8);
@@ -44,65 +42,35 @@ public class EncryptionEnvelope {
          SecretKeySpec secretKeySpec = new SecretKeySpec(key, AES);
          cipher.init(Cipher.DECRYPT_MODE, secretKeySpec);
          byte[] original = cipher.doFinal(value);
-         return new EncryptionEnvelopeResult<String>(false, id + " " + DECRYPTED, new String(original, UTF8));
+         return new String(original, UTF8);
       } catch (Exception e) {
-         return new EncryptionEnvelopeResult<String>(false, e.getMessage(), null);
+         throw new EncryptionEnvelopeException(e);
       }
-
    }
 
-   @SuppressWarnings("unchecked")
-   public EncryptionEnvelopeResult<?> fetch(String id) {
+   public String fetch(String id) {
 
-      EncryptionEnvelopeResult<?> result = saver.fetchData(id);
-      if (!result.isSuccess())
-         return result;
-
-      SimpleEntry<String, String> data = (SimpleEntry<String, String>) result.getPayload();
+      SimpleEntry<String, String> data = saver.fetchData(id);
       String keyId = data.getKey();
       String encryptedData = data.getValue();
-
-      result = saver.fetchKey(keyId);
-      if (!result.isSuccess())
-         return result;
-
-      result = saver.fetchKey(keyId);
-      if (!result.isSuccess())
-         return result;
-
-      return decrypt(result.getPayload().toString(), id, encryptedData);
-
+      String encryptedKey = saver.fetchKey(keyId);
+      String key = keySource.decryptKey(encryptedKey);
+      return decrypt(key, encryptedData);
    }
 
-   public EncryptionEnvelopeResult<?> store(String id, String data, String keyId) {
+   public void store(String id, String data, String keyId) {
 
+      String encryptedKey = saver.fetchKey(keyId);
       String key = null;
-      
-      EncryptionEnvelopeResult<?> result = saver.fetchKey(keyId);
-      if (result.isSuccess() ) {
-         result = keySource.decryptKey(result.getPayload().toString());
-         if (!result.isSuccess())
-            return result;
-
-         key = result.getPayload().toString();     
-         
-         
-         result = createKey(keyId);
-      } else if() {
-         return result;
+      if (encryptedKey == null) {
+         SimpleEntry<String, String> plainAndEncrypted = keySource.createKey(keyId);
+         saver.saveKey(keyId, plainAndEncrypted.getValue());
+         key = plainAndEncrypted.getKey();
+      } else {
+         key = keySource.decryptKey(encryptedKey);
       }
-
-      result = keySource.decryptKey(result.getPayload().toString());
-      if (!result.isSuccess())
-         return result;
-
-      key = result.getPayload().toString();
-
-      result = encrypt(key, id, data);
-      if (!result.isSuccess())
-         return result;
-
-      return saver.saveData(id, result.getPayload().toString(), keyId);
+      String encryptedData = encrypt(key, data);
+      saver.saveData(id, encryptedData, keyId);
    }
 
    public void setJpaDelegate(JpaDelegate jpa) {

@@ -1,18 +1,14 @@
 package com.gtv.security;
 
 import java.util.AbstractMap.SimpleEntry;
-import java.util.Map.Entry;
 
 public interface JpaDelegate {
 
-   static final String STORED    = "Stored";
-   static final String NOT_FOUND = "Not found";
+   void saveData(String id, String value, String keyId);
 
-   EncryptionEnvelopeResult<Void> saveData(String id, String value, String keyId);
+   SimpleEntry<String, String> fetchData(String id);
 
-   EncryptionEnvelopeResult<SimpleEntry<String, String>> fetchData(String id);
+   String fetchKey(String keyId);
 
-   EncryptionEnvelopeResult<Entry<String, String>> fetchKey(String keyName);
-
-   EncryptionEnvelopeResult<Entry<String, String>> saveKey(String keyName, String value);
+   void saveKey(String keyName, String value);
 }
