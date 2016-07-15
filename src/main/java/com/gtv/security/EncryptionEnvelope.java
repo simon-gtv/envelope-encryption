@@ -1,6 +1,7 @@
 package com.gtv.security;
 
 import java.util.AbstractMap.SimpleEntry;
+import java.util.Base64;
 
 import javax.crypto.Cipher;
 import javax.crypto.spec.SecretKeySpec;
@@ -11,11 +12,19 @@ public class EncryptionEnvelope {
 
    private static final String AES  = "AES";
    private static final String UTF8 = "UTF-8";
+   private static final Cipher cipher;
+   @Autowired
+   private JpaDelegate         saver;
+   @Autowired
+   private KeySource           keySource;
 
-   @Autowired
-   private JpaDelegate saver;
-   @Autowired
-   private KeySource   keySource;
+   static {
+      try {
+         cipher = Cipher.getInstance(AES);
+      } catch (Exception e) {
+         throw new EncryptionEnvelopeException(e);
+      }
+   }
 
    private String encrypt(String plainKey, String target) {
 
@@ -23,10 +32,10 @@ public class EncryptionEnvelope {
          byte[] key = plainKey.getBytes(UTF8);
          byte[] value = target.getBytes(UTF8);
          SecretKeySpec secretKeySpec = new SecretKeySpec(key, AES);
-         Cipher cipher = Cipher.getInstance(AES);
          cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec);
-         byte[] encrypted = cipher.doFinal(value);
-         return new String(encrypted, UTF8);
+         value = cipher.doFinal(value);
+         value = Base64.getEncoder().encode(value);
+         return new String(value, UTF8);
       } catch (Exception e) {
          throw new EncryptionEnvelopeException(e);
       }
@@ -38,8 +47,8 @@ public class EncryptionEnvelope {
       try {
          byte[] key = plainKey.getBytes(UTF8);
          byte[] value = target.getBytes(UTF8);
-         Cipher cipher = Cipher.getInstance(AES);
          SecretKeySpec secretKeySpec = new SecretKeySpec(key, AES);
+         value = Base64.getDecoder().decode(value);
          cipher.init(Cipher.DECRYPT_MODE, secretKeySpec);
          byte[] original = cipher.doFinal(value);
          return new String(original, UTF8);
@@ -51,6 +60,8 @@ public class EncryptionEnvelope {
    public String fetch(String id) {
 
       SimpleEntry<String, String> data = saver.fetchData(id);
+      if (data == null)
+         return null;
       String keyId = data.getKey();
       String encryptedData = data.getValue();
       String encryptedKey = saver.fetchKey(keyId);
@@ -63,7 +74,7 @@ public class EncryptionEnvelope {
       String encryptedKey = saver.fetchKey(keyId);
       String key = null;
       if (encryptedKey == null) {
-         SimpleEntry<String, String> plainAndEncrypted = keySource.createKey(keyId);
+         SimpleEntry<String, String> plainAndEncrypted = keySource.createKey();
          saver.saveKey(keyId, plainAndEncrypted.getValue());
          key = plainAndEncrypted.getKey();
       } else {
