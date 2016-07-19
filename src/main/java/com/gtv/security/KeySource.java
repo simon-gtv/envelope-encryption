@@ -4,8 +4,8 @@ import java.util.AbstractMap.SimpleEntry;
 
 public interface KeySource {
 
-   SimpleEntry<String, String> createKey();
+   SimpleEntry<byte[], byte[]> createKey();
 
-   String decryptKey(String keyId);
+   byte[] decryptKey(byte[] encryptedKey);
 
 }

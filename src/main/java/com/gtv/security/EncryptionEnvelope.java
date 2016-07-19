@@ -1,5 +1,6 @@
 package com.gtv.security;
 
+import java.io.UnsupportedEncodingException;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.Base64;
 
@@ -10,83 +11,92 @@ import org.springframework.beans.factory.annotation.Autowired;
 
 public class EncryptionEnvelope {
 
-   private static final String AES  = "AES";
-   private static final String UTF8 = "UTF-8";
-   private static final Cipher cipher;
+   private static final String AES = "AES";
+
+   private static final Cipher CIPHER;
+   private static final String ISO_8859_1 = "ISO-8859-1"; // 8-bit (byte)
+                                                          // transparent
+                                                          // char-set
    @Autowired
-   private JpaDelegate         saver;
+   private JpaDelegate         dao;
+
    @Autowired
-   private KeySource           keySource;
+   private KeySource keySource;
 
    static {
       try {
-         cipher = Cipher.getInstance(AES);
-      } catch (Exception e) {
+         CIPHER = Cipher.getInstance(AES);
+      }
+      catch (Exception e) {
          throw new EncryptionEnvelopeException(e);
       }
    }
 
-   private String encrypt(String plainKey, String target) {
+   public static byte[] toByteArray(String string) {
 
       try {
-         byte[] key = plainKey.getBytes(UTF8);
-         byte[] value = target.getBytes(UTF8);
-         SecretKeySpec secretKeySpec = new SecretKeySpec(key, AES);
-         cipher.init(Cipher.ENCRYPT_MODE, secretKeySpec);
-         value = cipher.doFinal(value);
-         value = Base64.getEncoder().encode(value);
-         return new String(value, UTF8);
-      } catch (Exception e) {
+         return string.getBytes(ISO_8859_1);
+      }
+      catch (UnsupportedEncodingException e) {
+         throw new EncryptionEnvelopeException(e);
+      }
+   }
+
+   public static String toString(byte[] bytes) {
+
+      try {
+         return new String(bytes, ISO_8859_1);
+      }
+      catch (UnsupportedEncodingException e) {
          throw new EncryptionEnvelopeException(e);
       }
 
    }
 
-   private String decrypt(String plainKey, String target) {
+   private byte[] decrypt(byte[] key, byte[] value) {
 
+      byte[] original;
       try {
-         byte[] key = plainKey.getBytes(UTF8);
-         byte[] value = target.getBytes(UTF8);
          SecretKeySpec secretKeySpec = new SecretKeySpec(key, AES);
          value = Base64.getDecoder().decode(value);
-         cipher.init(Cipher.DECRYPT_MODE, secretKeySpec);
-         byte[] original = cipher.doFinal(value);
-         return new String(original, UTF8);
-      } catch (Exception e) {
+         CIPHER.init(Cipher.DECRYPT_MODE, secretKeySpec);
+         original = CIPHER.doFinal(value);
+      }
+      catch (Exception e) {
          throw new EncryptionEnvelopeException(e);
       }
+      return original;
    }
 
-   public String fetch(String id) {
+   private byte[] encrypt(byte[] plainKey, byte[] target) {
 
-      SimpleEntry<String, String> data = saver.fetchData(id);
+      try {
+         SecretKeySpec secretKeySpec = new SecretKeySpec(plainKey, AES);
+         CIPHER.init(Cipher.ENCRYPT_MODE, secretKeySpec);
+         target = CIPHER.doFinal(target);
+         target = Base64.getEncoder().encode(target);
+         return target;
+      }
+      catch (Exception e) {
+         throw new EncryptionEnvelopeException(e);
+      }
+
+   }
+
+   public byte[] fetch(String id) {
+
+      SimpleEntry<String, byte[]> data = dao.fetchData(id);
       if (data == null)
          return null;
-      String keyId = data.getKey();
-      String encryptedData = data.getValue();
-      String encryptedKey = saver.fetchKey(keyId);
-      String key = keySource.decryptKey(encryptedKey);
+      byte[] encryptedData = data.getValue();
+      byte[] encryptedKey = dao.fetchKey(data.getKey());
+      byte[] key = keySource.decryptKey(encryptedKey);
       return decrypt(key, encryptedData);
-   }
-
-   public void store(String id, String data, String keyId) {
-
-      String encryptedKey = saver.fetchKey(keyId);
-      String key = null;
-      if (encryptedKey == null) {
-         SimpleEntry<String, String> plainAndEncrypted = keySource.createKey();
-         saver.saveKey(keyId, plainAndEncrypted.getValue());
-         key = plainAndEncrypted.getKey();
-      } else {
-         key = keySource.decryptKey(encryptedKey);
-      }
-      String encryptedData = encrypt(key, data);
-      saver.saveData(id, encryptedData, keyId);
    }
 
    public void setJpaDelegate(JpaDelegate jpa) {
 
-      this.saver = jpa;
+      this.dao = jpa;
    }
 
    public void setKeySource(KeySource keySource) {
@@ -94,4 +104,18 @@ public class EncryptionEnvelope {
       this.keySource = keySource;
    }
 
+   public void store(String id, byte[] data, String keyId) {
+
+      byte[] encryptedKey = dao.fetchKey(keyId);
+      byte[] key = null;
+      if (encryptedKey == null) {
+         SimpleEntry<byte[], byte[]> plainAndEncrypted = keySource.createKey();
+         dao.saveKey(keyId, plainAndEncrypted.getValue());
+         key = plainAndEncrypted.getKey();
+      } else {
+         key = keySource.decryptKey(encryptedKey);
+      }
+      byte[] encryptedData = encrypt(key, data);
+      dao.saveData(id, encryptedData, keyId);
+   }
 }

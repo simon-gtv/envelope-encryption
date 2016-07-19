@@ -1,6 +1,7 @@
 package com.gtv.security.stub;
 
 import java.util.AbstractMap.SimpleEntry;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -11,37 +12,54 @@ import com.gtv.security.JpaDelegate;
 @Repository
 public class JpaStub implements JpaDelegate {
 
-   public Map<String, String> dataMap = new HashMap<>();
-   public Map<String, String> keyMap  = new HashMap<>();
    public Map<String, String> dataKey = new HashMap<>();
+   public Map<String, byte[]> dataMap = new HashMap<>();
+   public Map<String, byte[]> keyMap  = new HashMap<>();
 
-   @Override
-   public void saveData(String id, String value, String keyId) {
+   private static void report(String string, String id, byte[] value) {
 
-      dataMap.put(id, value);
-      dataKey.put(id, keyId);
+      System.out.println(string + " - " + id + ": " + Arrays.toString(value));
+   }
+
+   private static void report(String string, String id, String value) {
+
+      System.out.println(string + " - " + id + ": " + value);
    }
 
    @Override
-   public SimpleEntry<String, String> fetchData(String id) {
+   public SimpleEntry<String, byte[]> fetchData(String id) {
 
-      String value = dataMap.get(id);
+      byte[] value = dataMap.get(id);
+      report("get-id-val", id, value);
       if (value == null)
          return null;
       String key = dataKey.get(id);
-      return new SimpleEntry<String, String>(key, value);
+      report("get-id-key", id, key);
+      return new SimpleEntry<String, byte[]>(key, value);
    }
 
    @Override
-   public String fetchKey(String keyId) {
+   public byte[] fetchKey(String keyId) {
 
-      return keyMap.get(keyId);
+      byte[] key = keyMap.get(keyId);
+      report("get-key", keyId, key);
+      return key;
    }
 
    @Override
-   public void saveKey(String keyName, String value) {
+   public void saveData(String id, byte[] value, String keyId) {
 
-      keyMap.put(keyName, value);
+      dataMap.put(id, value);
+      report("save-id-val", id, value);
+      dataKey.put(id, keyId);
+      report("save-id-key", id, keyId);
+   }
+
+   @Override
+   public void saveKey(String keyId, byte[] key) {
+
+      keyMap.put(keyId, key);
+      report("save-key", keyId, key);
    }
 
 }

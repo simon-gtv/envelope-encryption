@@ -4,11 +4,11 @@ import java.util.AbstractMap.SimpleEntry;
 
 public interface JpaDelegate {
 
-   void saveData(String id, String value, String keyId);
+   SimpleEntry<String, byte[]> fetchData(String id);
 
-   SimpleEntry<String, String> fetchData(String id);
+   byte[] fetchKey(String keyId);
 
-   String fetchKey(String keyId);
+   void saveData(String id, byte[] value, String keyId);
 
-   void saveKey(String keyName, String value);
+   void saveKey(String keyName, byte[] data);
 }

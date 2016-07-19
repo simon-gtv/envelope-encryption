@@ -7,4 +7,8 @@ public class EncryptionEnvelopeException extends RuntimeException {
       super(e);
    }
 
+   public EncryptionEnvelopeException(String msg) {
+      super(msg);
+   }
+
 }
