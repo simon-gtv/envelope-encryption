@@ -5,8 +5,6 @@ import java.util.AbstractMap.SimpleEntry;
 
 import org.springframework.stereotype.Component;
 
-import com.amazonaws.auth.AWSCredentials;
-import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.kms.AWSKMSClient;
 import com.amazonaws.services.kms.model.DecryptRequest;
 import com.amazonaws.services.kms.model.DecryptResult;
@@ -21,9 +19,6 @@ public class AwsKeySource implements KeySource {
    private final AWSKMSClient  kms;
 
    public AwsKeySource() {
-
-      AWSCredentials awsCreds = new BasicAWSCredentials("AKIAJJN54AAC3YZ6SW6A",
-            "CLwZSuKz3f3d3J4zBsD3BA39AOlZ6pzKfBkhxZCW");
 
       kms = new AWSKMSClient(awsCreds);
 
