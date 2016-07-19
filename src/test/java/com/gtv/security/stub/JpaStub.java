@@ -5,11 +5,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.springframework.stereotype.Repository;
-
 import com.gtv.security.JpaDelegate;
 
-@Repository
 public class JpaStub implements JpaDelegate {
 
    public Map<String, String> dataKey = new HashMap<>();

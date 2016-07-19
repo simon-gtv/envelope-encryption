@@ -1,22 +1,30 @@
 package com.gtv.security;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleEntry;
 
-import org.springframework.stereotype.Component;
+import javax.annotation.PostConstruct;
 
-@Component
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Repository;
+
+@Repository
 public class FileStorageDelegator implements JpaDelegate {
 
-   private static final String DATA_EXT   = "txt";
-   private static final String KEY_EXT    = "key";
-   private static final String KEY_ID_EXT = "kid";
-   private static String       UTF8       = "UTF8";
+   private static final String DATA_EXT         = "txt";
+   private static final String KEY_EXT          = "key";
+   private static final String KEY_ID_EXT       = "kid";
+   private static String       UTF8             = "UTF8";
+   public static final String  TEMP_DIR_KEYWORD = "tmp";
 
-   private Path folder;
+   private Path rootDir;
+
+   @Value("${envelopeencrypter.jpa.file.rootdir}")
+   private String rootDirName;
 
    private String clean(String name, String extn) {
 
@@ -43,7 +51,7 @@ public class FileStorageDelegator implements JpaDelegate {
    private void save(String name, byte[] content) {
 
       try {
-         Path file = Paths.get(folder.toString(), name);
+         Path file = Paths.get(rootDir.toString(), name);
          Files.write(file, content);
       }
       catch (Exception e) {
@@ -52,11 +60,17 @@ public class FileStorageDelegator implements JpaDelegate {
 
    }
 
+   @PostConstruct
+   private void springInit() throws IOException {
+
+      this.setRootDir(rootDirName);
+   }
+
    @Override
    public SimpleEntry<String, byte[]> fetchData(String id) {
 
-      byte[] value = fetch(folder, clean(id, DATA_EXT));
-      byte[] keyId = fetch(folder, clean(id, KEY_ID_EXT));
+      byte[] value = fetch(rootDir, clean(id, DATA_EXT));
+      byte[] keyId = fetch(rootDir, clean(id, KEY_ID_EXT));
 
       if (keyId == null && value == null)
          return null;
@@ -72,7 +86,7 @@ public class FileStorageDelegator implements JpaDelegate {
    @Override
    public byte[] fetchKey(String keyId) {
 
-      byte[] key = fetch(folder, clean(keyId, KEY_EXT));
+      byte[] key = fetch(rootDir, clean(keyId, KEY_EXT));
       return key == null ? null : key;
    }
 
@@ -94,9 +108,15 @@ public class FileStorageDelegator implements JpaDelegate {
       save(clean(keyName, KEY_EXT), value);
    }
 
-   public void setFolder(Path folder) {
+   public void setRootDir(String folder) throws IOException {
 
-      this.folder = folder;
+      this.rootDirName = folder;
+      if (rootDirName.equals(TEMP_DIR_KEYWORD)) {
+         rootDir = Files.createTempDirectory(null);
+         rootDir.toFile().deleteOnExit();
+      } else {
+         rootDir = Paths.get(rootDirName);
+      }
    }
 
 }

@@ -3,8 +3,13 @@ package com.gtv.security;
 import java.nio.ByteBuffer;
 import java.util.AbstractMap.SimpleEntry;
 
+import javax.annotation.PostConstruct;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.kms.AWSKMSClient;
 import com.amazonaws.services.kms.model.DecryptRequest;
 import com.amazonaws.services.kms.model.DecryptResult;
@@ -16,15 +21,20 @@ public class AwsKeySource implements KeySource {
 
    private static final String ALIAS    = "alias/envelope";
    private static final String KEY_TYPE = "AES_128";
-   private final AWSKMSClient  kms;
+   @Value("${envelopeencrypter.aws.accesskey}")
+   private String              accessKey;
+   @Value("${envelopeencrypter.aws.endpoint}")
+   private String              endpoint;
+   private AWSKMSClient        kms;
+   @Value("${envelopeencrypter.aws.secretkey}")
+   private String              secretKey;
 
-   public AwsKeySource() {
+   @PostConstruct
+   private void init() {
 
+      AWSCredentials awsCreds = new BasicAWSCredentials(accessKey, secretKey);
       kms = new AWSKMSClient(awsCreds);
-
-      // For more information, see http://amzn.to/1mKTMmG
-
-      kms.setEndpoint("https://kms.eu-west-1.amazonaws.com");
+      kms.setEndpoint(endpoint);
    }
 
    @Override
